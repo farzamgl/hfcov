@@ -1,0 +1,3 @@
+[submodule "zynq-parrot"]
+	path = zynq-parrot
+	url = git@github.com:black-parrot-hdk/zynq-parrot.git
