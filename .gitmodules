@@ -1,3 +1,7 @@
 [submodule "zynq-parrot"]
 	path = zynq-parrot
 	url = git@github.com:black-parrot-hdk/zynq-parrot.git
+[submodule "cascade-meta"]
+	path = cascade-meta
+	url = https://github.com/black-parrot-hdk/cascade-meta.git
+  branch = hfcov
