@@ -22,23 +22,24 @@ init:
 	done
 
 %.run: $(NBF_FILE)
-	make -C $(ZP_SIM) run NBF_FILE=$(abspath $<)
-
-%.cov:
 	mkdir -p run.$*
+	make -C $(ZP_SIM) run NBF_FILE=$(abspath $<) COV_EN=1 RAND_COV=0 COV_NUM=$(words $(CGS))
 	for cg in $(CGS); do \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .raw,$$cg)) > run.$*/$(addsuffix .raw,$$cg); \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .align,$$cg)) > run.$*/$(addsuffix .align,$$cg); \
 	done
 
 %.reward:
+	@mkdir -p best
 	@touch run.$*/diff
 ifeq ($(ALIGN),0)
 	@for cg in $(CGS); do \
+		touch best/$(addsuffix .raw,$$cg); \
 		comm -1 -3 best/$(addsuffix .raw,$$cg) run.$*/$(addsuffix .raw,$$cg) >> run.$*/diff; \
 	done
 else
 	@for cg in $(CGS); do \
+		touch best/$(addsuffix .align,$$cg); \
 		comm -1 -3 best/$(addsuffix .align,$$cg) run.$*/$(addsuffix .align,$$cg) >> run.$*/diff; \
 	done
 endif
@@ -62,3 +63,4 @@ clean:
 bleach: clean
 	rm -rf run.*
 	rm -rf best
+	rm -rf __pycache__
