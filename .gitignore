@@ -1,4 +1,2 @@
-*.nbf
-run.*
-best
+runs
 __pycache__
