@@ -65,6 +65,25 @@ $(BEST):
 		touch $(RUN_DIR)/$(BEST)/$(addsuffix .align,$$cg); \
 	done
 
+%.craw:
+	@touch $(RUN_DIR)/$*/all
+	@for cg in $(CGS); do \
+		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$*/all; \
+	done
+	@wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
+	@rm -rf $(RUN_DIR)/$*/all
+
+%.calign:
+	@touch $(RUN_DIR)/$*/all
+	@for cg in $(CGS); do \
+		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$*/all; \
+	done
+	@wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
+	@rm -rf $(RUN_DIR)/$*/all
+
+%.rm:
+	rm -rf $(RUN_DIR)/$*
+
 clean:
 	$(MAKE) -C $(ZP_SIM) clean
 

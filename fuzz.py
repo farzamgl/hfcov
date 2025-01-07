@@ -19,3 +19,12 @@ def reward_cov(name, best):
 
 def update_cov(name, best):
   subprocess.run(['make', str(name)+'.update', 'BEST='+str(best)], capture_output=False, text=True).stdout
+
+def get_craw(name):
+  subprocess.run(['make', str(name)+'.craw'], capture_output=False, text=True).stdout
+
+def get_calign(name):
+  subprocess.run(['make', str(name)+'.calign'], capture_output=False, text=True).stdout
+
+def rm_dir(name):
+  subprocess.run(['make', str(name)+'.rm'], capture_output=False, text=True).stdout

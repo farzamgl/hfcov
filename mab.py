@@ -3,22 +3,24 @@ import sys
 import os
 import argparse
 import pprint
-
-#current = os.path.dirname(os.path.realpath(__file__))
-#parent = os.path.dirname(current)
-#sys.path.append(parent)
+import itertools
 
 import fuzz
 
 class EXP3:
-    def __init__(self, arms, gamma, alpha):
+    def __init__(self, arms, arm_probs, gamma, alpha, satw):
         """
         Initialize the EXP3 algorithm.
         """
         self.arms = arms
+        self.arm_probs = arm_probs
         self.gamma = gamma
         self.alpha = alpha
+        self.satw = satw
         self.weights = np.ones(arms)  # Initialize weights for each arm
+
+        self.arm_satcnt = [[0] * self.arms]
+        self.pulls = []
 
     def select_arm(self):
         """
@@ -38,9 +40,6 @@ class EXP3:
     def update(self, chosen_arm, reward):
         """
         Update the weights of the chosen arm based on the received reward.
-
-        :param chosen_arm: The index of the chosen arm.
-        :param reward: The reward received (normalized between 0 and 1).
         """
         probabilities = self.get_probabilities()
         estimated_reward = reward / probabilities[chosen_arm]
@@ -54,27 +53,55 @@ class EXP3:
       fuzz.run_sim(itr)
 
       # calculate reward based on comparing with previous best coverage
-      greward = fuzz.reward_cov(itr, 'gbest')
-      lreward = fuzz.reward_cov(itr, str(arm) + '.best')
-      reward = (self.alpha * lreward) + ((1 - self.alpha) * greward)
+      gcov = fuzz.reward_cov(itr, 'gbest')
+      lcov = fuzz.reward_cov(itr, str(arm) + '.best')
+      reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
 
       # update best coverage
       fuzz.update_cov(itr, 'gbest')
       fuzz.update_cov(itr, str(arm) + '.best')
 
+      # update lists and counters
+      self.pulls.append(arm)
+      if lcov == 0:
+        self.arm_satcnt[arm] += 1
+      else:
+        self.arm_satcnt[arm] = 0
+
       return reward
 
-    def run(self, arm_probs, iterations):
+    def saturate(self, arm):
+      if self.arm_satcnt[arm] == self.satw:
+        self.self.arm_satcnt[arm] = 0
+        self.arm_probs[arm] = np.random.dirichlet(np.ones(args.knobs),size=1)[0]
+        self.weights[arm] = (np.sum(self.weights) - self.weights[arm]) / (self.arms - 1)
+        fuzz.rm_dir(str(arm) + '.best')
+
+    def run(self, iterations):
         """
         Run the EXP3 simulation.
         """
+        craws = []
+        caligns = []
         fuzz.clean_sim()
         for itr in range(iterations):
             chosen_arm = self.select_arm()
-            chosen_probs = arm_probs[chosen_arm]
+            chosen_probs = self.arm_probs[chosen_arm]
             reward = self.step(itr, chosen_arm, chosen_probs)
-            # TODO: normalize reward
+
+            craws.append(int(fuzz.get_craw('gbest')))
+            caligns.append(int(fuzz.get_calign('gbest')))
+
+            # using logistic function to normalize reward
+            reward = (1 - np.exp(-reward)) / (1 + np.exp(-reward))
+
             self.update(chosen_arm, reward)
+            self.saturate(chosen_arm)
+
+        cum_craws = list(itertools.accumulate(craws))
+        cum_caligns = list(itertools.accumulate(caligns))
+        print(max(cum_craws))
+        print(max(cum_caligns))
 
 if __name__ == "__main__":
     # Create the parser
@@ -86,6 +113,7 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", type=float, required=True, help="Exploration parameter (0 < gamma <= 1)")
     parser.add_argument("--knobs", type=int, required=True, help="Number of Cascade knobs")
     parser.add_argument("--alpha", type=float, required=True, help="Local reward parameter (0 < alpha <= 1)")
+    parser.add_argument("--satw", type=int, required=True, help="Arm saturation window length")
 
     # Parse arguments
     args = parser.parse_args()
@@ -93,5 +121,5 @@ if __name__ == "__main__":
     arm_probs = np.random.dirichlet(np.ones(args.knobs),size=args.arms)
     pprint.pp(arm_probs)
 
-    exp3 = EXP3(arms=args.arms, gamma=args.gamma, alpha=args.alpha)
-    exp3.run(arm_probs=arm_probs, iterations=args.iterations)
+    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, satw=args.satw)
+    exp3.run(iterations=args.iterations)
