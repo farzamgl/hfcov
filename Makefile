@@ -20,7 +20,7 @@ CASCADE_DIR = $(TOP)/cascade-meta
 CASCADE_ENV = $(CASCADE_DIR)/env.sh
 CASCADE_PY = $(CASCADE_DIR)/fuzzer/do_genmanyelfs.py
 export CASCADE_BP = $(ZP)/cosim/import/black-parrot
-export CASCADE_BP_SDK_DIR = $(ZP)/cosim/import/black-parrot-sdk
+export CASCADE_BP_SDK_DIR = $(ZP)/software/import/black-parrot-sdk
 
 FIRST = 0
 LAST = 10
@@ -30,6 +30,14 @@ RUN_DIR = $(TOP)/runs.$(COV_T)
 TEST = test
 
 TIMEOUT = 3m
+
+libs:
+	git submodule update --init cascade-meta
+	git submodule update --init zynq-parrot
+	cd zynq-parrot && \
+		git submodule update --init --recursive cosim/import/black-parrot && \
+		git submodule update --init --recursive cosim/import/basejump_stl && \
+		git submodule update --init --recursive cosim/import/black-parrot-subsystems
 
 %.cascade:
 	mkdir -p $(RUN_DIR)/$*
