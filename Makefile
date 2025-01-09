@@ -26,8 +26,10 @@ FIRST = 0
 LAST = 10
 CGS = $(shell seq -s " " $(FIRST) $(LAST))
 
-RUN_DIR = $(TOP)/runs
+RUN_DIR = $(TOP)/runs.$(COV_T)
 TEST = test
+
+TIMEOUT = 3m
 
 %.cascade:
 	mkdir -p $(RUN_DIR)/$*
@@ -36,19 +38,19 @@ TEST = test
 	$(RV_OBJDUMP) $(RUN_DIR)/$*/$(TEST).riscv > $(RUN_DIR)/$*/$(TEST).dump
 
 %.run:
-	make -C $(ZP_SIM) run NBF_FILE=$(abspath $(RUN_DIR)/$*/$(TEST).nbf) COV_EN=1 RAND_COV=0 COV_NUM=$(words $(CGS))
+	timeout $(TIMEOUT) make -C $(ZP_SIM) run NBF_FILE=$(abspath $(RUN_DIR)/$*/$(TEST).nbf) COV_EN=1 RAND_COV=0 COV_NUM=$(words $(CGS)) || echo "timeout"
 	for cg in $(CGS); do \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .raw,$$cg)) > $(RUN_DIR)/$*/$(addsuffix .raw,$$cg); \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .align,$$cg)) > $(RUN_DIR)/$*/$(addsuffix .align,$$cg); \
 	done
 
 %.reward: | $(BEST)
-	@touch $(RUN_DIR)/$*/diff
-	@for cg in $(CGS); do \
+	touch $(RUN_DIR)/$*/diff
+	for cg in $(CGS); do \
 		comm -1 -3 $(RUN_DIR)/$(BEST)/$(addsuffix .$(COV_T),$$cg) $(RUN_DIR)/$*/$(addsuffix .$(COV_T),$$cg) >> $(RUN_DIR)/$*/diff; \
 	done
-	@wc -l $(RUN_DIR)/$*/diff | awk '{print $$1;}'
-	@rm -rf $(RUN_DIR)/$*/diff
+	wc -l $(RUN_DIR)/$*/diff | awk '{print $$1;}'
+	rm -rf $(RUN_DIR)/$*/diff
 
 %.update: | $(BEST)
 	for cg in $(CGS); do \
@@ -66,27 +68,44 @@ $(BEST):
 	done
 
 %.craw:
-	@touch $(RUN_DIR)/$*/all
-	@for cg in $(CGS); do \
+	touch $(RUN_DIR)/$*/all
+	for cg in $(CGS); do \
 		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$*/all; \
 	done
-	@wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
-	@rm -rf $(RUN_DIR)/$*/all
+	wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
+	rm -rf $(RUN_DIR)/$*/all
 
 %.calign:
-	@touch $(RUN_DIR)/$*/all
-	@for cg in $(CGS); do \
+	touch $(RUN_DIR)/$*/all
+	for cg in $(CGS); do \
 		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$*/all; \
 	done
-	@wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
-	@rm -rf $(RUN_DIR)/$*/all
+	wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
+	rm -rf $(RUN_DIR)/$*/all
 
 %.rm:
 	rm -rf $(RUN_DIR)/$*
 
 clean:
 	$(MAKE) -C $(ZP_SIM) clean
-
-bleach: clean
-	rm -rf $(RUN_DIR)
 	rm -rf __pycache__
+
+bleach:
+	@echo -n "Are you sure you want to clear all data? [y/N] " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) clean
+	rm -rf runs.*
+
+########################################
+MAB_ITER ?= 10
+MAB_ARMS ?= 5
+MAB_GAMMA ?= 0.1
+MAB_KNOBS ?= 27
+MAB_ALPHA ?= 0.25
+MAB_SATW ?= 3
+
+mab:
+	$(PYTHON) -u mab.py \
+	--iterations $(MAB_ITER) --arms $(MAB_ARMS) --gamma $(MAB_GAMMA) \
+	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --satw $(MAB_SATW) \
+	|& tee mab.$(COV_T).log
+

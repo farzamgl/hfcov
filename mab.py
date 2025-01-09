@@ -19,7 +19,8 @@ class EXP3:
         self.satw = satw
         self.weights = np.ones(arms)  # Initialize weights for each arm
 
-        self.arm_satcnt = [[0] * self.arms]
+        self.arm_pulls = [0] * self.arms
+        self.arm_satcnt = [0] * self.arms
         self.pulls = []
 
     def select_arm(self):
@@ -46,6 +47,8 @@ class EXP3:
         self.weights[chosen_arm] *= np.exp(self.gamma * estimated_reward / self.arms)
 
     def step(self, itr, arm, probs):
+      print('------------------------')
+      print('Pulling arm: ' + str(arm))
       # create an nbf with input probs
       fuzz.cascade_run(itr, probs.tolist())
 
@@ -55,7 +58,16 @@ class EXP3:
       # calculate reward based on comparing with previous best coverage
       gcov = fuzz.reward_cov(itr, 'gbest')
       lcov = fuzz.reward_cov(itr, str(arm) + '.best')
-      reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
+      # only use global coverage as reward on first arm pull
+      if self.arm_pulls[arm] == 0:
+        reward = gcov
+      else:
+        reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
+      # using logistic function to normalize reward
+      reward = (1 - np.exp(-reward)) / (1 + np.exp(-reward))
+      print('gcov: ' + str(gcov))
+      print('lcov: ' + str(lcov))
+      print('reward: ' + str(reward))
 
       # update best coverage
       fuzz.update_cov(itr, 'gbest')
@@ -67,12 +79,15 @@ class EXP3:
         self.arm_satcnt[arm] += 1
       else:
         self.arm_satcnt[arm] = 0
+      self.arm_pulls[arm] += 1
 
       return reward
 
     def saturate(self, arm):
       if self.arm_satcnt[arm] == self.satw:
-        self.self.arm_satcnt[arm] = 0
+        print('Resetting saturated arm: ' + str(arm))
+        self.arm_satcnt[arm] = 0
+        self.arm_pulls[arm] = 0
         self.arm_probs[arm] = np.random.dirichlet(np.ones(args.knobs),size=1)[0]
         self.weights[arm] = (np.sum(self.weights) - self.weights[arm]) / (self.arms - 1)
         fuzz.rm_dir(str(arm) + '.best')
@@ -81,27 +96,23 @@ class EXP3:
         """
         Run the EXP3 simulation.
         """
-        craws = []
-        caligns = []
         fuzz.clean_sim()
-        for itr in range(iterations):
-            chosen_arm = self.select_arm()
-            chosen_probs = self.arm_probs[chosen_arm]
-            reward = self.step(itr, chosen_arm, chosen_probs)
+        with open('mab.raw', 'w') as fraw, open('mab.align', 'w') as falign:
+          for itr in range(iterations):
+              chosen_arm = self.select_arm()
+              chosen_probs = self.arm_probs[chosen_arm]
+              reward = self.step(itr, chosen_arm, chosen_probs)
 
-            craws.append(int(fuzz.get_craw('gbest')))
-            caligns.append(int(fuzz.get_calign('gbest')))
+              self.update(chosen_arm, reward)
+              self.saturate(chosen_arm)
 
-            # using logistic function to normalize reward
-            reward = (1 - np.exp(-reward)) / (1 + np.exp(-reward))
+              craw = int(fuzz.get_craw('gbest'))
+              calign = int(fuzz.get_calign('gbest'))
+              fraw.write(str(craw) + '\n')
+              falign.write(str(calign) + '\n')
 
-            self.update(chosen_arm, reward)
-            self.saturate(chosen_arm)
-
-        cum_craws = list(itertools.accumulate(craws))
-        cum_caligns = list(itertools.accumulate(caligns))
-        print(max(cum_craws))
-        print(max(cum_caligns))
+        print(craw)
+        print(calign)
 
 if __name__ == "__main__":
     # Create the parser
