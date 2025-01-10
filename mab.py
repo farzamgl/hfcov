@@ -110,6 +110,8 @@ class EXP3:
               calign = int(fuzz.get_calign('gbest'))
               fraw.write(str(craw) + '\n')
               falign.write(str(calign) + '\n')
+              fraw.flush()
+              falign.flush()
 
         print(craw)
         print(calign)

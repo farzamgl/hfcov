@@ -86,7 +86,7 @@ $(BEST):
 %.calign:
 	touch $(RUN_DIR)/$*/all
 	for cg in $(CGS); do \
-		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$*/all; \
+		cat $(RUN_DIR)/$*/$(addsuffix .align,$$cg) >> $(RUN_DIR)/$*/all; \
 	done
 	wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
 	rm -rf $(RUN_DIR)/$*/all
@@ -104,10 +104,10 @@ bleach:
 	rm -rf runs.*
 
 ########################################
-MAB_ITER ?= 10
-MAB_ARMS ?= 5
+MAB_ITER ?= 10000
+MAB_ARMS ?= 10
 MAB_GAMMA ?= 0.1
-MAB_KNOBS ?= 27
+MAB_KNOBS ?= 14
 MAB_ALPHA ?= 0.25
 MAB_SATW ?= 3
 
