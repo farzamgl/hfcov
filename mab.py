@@ -64,7 +64,7 @@ class EXP3:
       else:
         reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
       # using logistic function to normalize reward
-      reward = (1 - np.exp(-reward)) / (1 + np.exp(-reward))
+      reward = (1 - np.exp(-0.25 *reward)) / (1 + np.exp(-0.25 * reward))
       print('gcov: ' + str(gcov))
       print('lcov: ' + str(lcov))
       print('reward: ' + str(reward))
@@ -75,7 +75,7 @@ class EXP3:
 
       # update lists and counters
       self.pulls.append(arm)
-      if lcov == 0:
+      if gcov == 0:
         self.arm_satcnt[arm] += 1
       else:
         self.arm_satcnt[arm] = 0
