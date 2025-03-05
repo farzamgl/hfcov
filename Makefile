@@ -11,10 +11,12 @@ endif
 
 PYTHON = python3.9
 RV_OBJDUMP = riscv64-unknown-elf-objdump -d
+RV_OBJCOPY = riscv64-unknown-elf-objcopy -O verilog
 
 ZP = $(TOP)/zynq-parrot
 ZP_EX = black-parrot-example
 ZP_SIM = $(ZP)/cosim/$(ZP_EX)/verilator
+ZP_NBF = $(ZP)/cosim/import/black-parrot/bp_common/software/py/nbf.py
 
 CASCADE_DIR = $(TOP)/cascade-meta
 CASCADE_ENV = $(CASCADE_DIR)/env.sh
@@ -23,7 +25,7 @@ export CASCADE_BP = $(ZP)/cosim/import/black-parrot
 export CASCADE_BP_SDK_DIR = $(ZP)/software/import/black-parrot-sdk
 
 FIRST = 0
-LAST = 10
+LAST = 9
 CGS = $(shell seq -s " " $(FIRST) $(LAST))
 
 RUN_DIR = $(TOP)/runs.$(COV_T)
@@ -37,15 +39,21 @@ libs:
 	cd zynq-parrot && \
 		git submodule update --init --recursive cosim/import/black-parrot && \
 		git submodule update --init --recursive cosim/import/basejump_stl && \
-		git submodule update --init --recursive cosim/import/black-parrot-subsystems
+		git submodule update --init --recursive cosim/import/black-parrot-subsystems && \
+		git submodule update --init --recursive cosim/import/black-parrot-tools && \
+		cd cosim/black-parrot-example && ./instrument.sh
 
 %.cascade:
 	mkdir -p $(RUN_DIR)/$*
 	source $(CASCADE_ENV) && \
 	$(PYTHON) $(CASCADE_PY) "$(PROBS)" 1 $(RUN_DIR)/$* $(TEST)
-	$(RV_OBJDUMP) $(RUN_DIR)/$*/$(TEST).riscv > $(RUN_DIR)/$*/$(TEST).dump
+	$(RV_OBJDUMP) $(RUN_DIR)/$*/$(TEST).elf > $(RUN_DIR)/$*/$(TEST).dump
+	$(RV_OBJCOPY) $(RUN_DIR)/$*/$(TEST).elf $(RUN_DIR)/$*/$(TEST).mem
+	sed -i "s/@8/@0/g" $(RUN_DIR)/$*/$(TEST).mem
+	$(PYTHON) $(ZP_NBF) --debug --skip_zeros --config --ncpus 1 --boot_pc 0x80000000 --mem $(RUN_DIR)/$*/$(TEST).mem > $(RUN_DIR)/$*/$(TEST).nbf
 
 %.run:
+	make -C $(ZP_SIM) build COV_EN=1 RAND_COV=0 COV_NUM=$(words $(CGS))
 	timeout $(TIMEOUT) make -C $(ZP_SIM) run NBF_FILE=$(abspath $(RUN_DIR)/$*/$(TEST).nbf) COV_EN=1 RAND_COV=0 COV_NUM=$(words $(CGS)) || echo "timeout"
 	for cg in $(CGS); do \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .raw,$$cg)) > $(RUN_DIR)/$*/$(addsuffix .raw,$$cg); \
@@ -53,12 +61,12 @@ libs:
 	done
 
 %.reward: | $(BEST)
-	touch $(RUN_DIR)/$*/diff
+	touch $(RUN_DIR)/$*/$(BEST).diff
 	for cg in $(CGS); do \
-		comm -1 -3 $(RUN_DIR)/$(BEST)/$(addsuffix .$(COV_T),$$cg) $(RUN_DIR)/$*/$(addsuffix .$(COV_T),$$cg) >> $(RUN_DIR)/$*/diff; \
+		comm -1 -3 $(RUN_DIR)/$(BEST)/$(addsuffix .$(COV_T),$$cg) $(RUN_DIR)/$*/$(addsuffix .$(COV_T),$$cg) >> $(RUN_DIR)/$*/$(BEST).diff; \
 	done
-	wc -l $(RUN_DIR)/$*/diff | awk '{print $$1;}'
-	rm -rf $(RUN_DIR)/$*/diff
+	wc -l $(RUN_DIR)/$*/$(BEST).diff | awk '{print $$1;}'
+	#rm -rf $(RUN_DIR)/$*/$(BEST).diff
 
 %.update: | $(BEST)
 	for cg in $(CGS); do \
@@ -96,6 +104,8 @@ $(BEST):
 
 clean:
 	$(MAKE) -C $(ZP_SIM) clean
+	rm -rf $(ZP_SIM)/*.raw
+	rm -rf $(ZP_SIM)/*.align
 	rm -rf __pycache__
 
 bleach:
