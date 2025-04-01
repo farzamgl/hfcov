@@ -115,9 +115,9 @@ bleach:
 
 ########################################
 MAB_ITER ?= 10000
-MAB_ARMS ?= 10
+MAB_ARMS ?= 8
 MAB_GAMMA ?= 0.1
-MAB_KNOBS ?= 14
+MAB_KNOBS ?= 8
 MAB_ALPHA ?= 0.25
 MAB_SATW ?= 3
 

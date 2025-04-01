@@ -48,6 +48,7 @@ class EXP3:
 
     def step(self, itr, arm, probs):
       print('------------------------')
+      print('Arm probabilities: ' + str(self.get_probabilities()))
       print('Pulling arm: ' + str(arm))
       # create an nbf with input probs
       fuzz.cascade_run(itr, probs.tolist())
@@ -88,7 +89,7 @@ class EXP3:
         print('Resetting saturated arm: ' + str(arm))
         self.arm_satcnt[arm] = 0
         self.arm_pulls[arm] = 0
-        self.arm_probs[arm] = np.random.dirichlet(np.ones(args.knobs),size=1)[0]
+        self.arm_probs[arm] = np.random.dirichlet(0.1 * np.ones(args.knobs),size=1)[0]
         self.weights[arm] = (np.sum(self.weights) - self.weights[arm]) / (self.arms - 1)
         fuzz.rm_dir(str(arm) + '.best')
 
@@ -131,7 +132,17 @@ if __name__ == "__main__":
     # Parse arguments
     args = parser.parse_args()
 
-    arm_probs = np.random.dirichlet(np.ones(args.knobs),size=args.arms)
+    np.random.seed(0)
+    max_knobs = []
+    arm_probs = []
+    while len(arm_probs) < args.arms:
+      probs = np.random.dirichlet(0.1 * np.ones(args.knobs),size=1)[0]
+      max_knob = np.argmax(probs)
+      if (max_knob == len(max_knobs)) or (len(max_knobs) >= args.knobs):
+        max_knobs.append(max_knob)
+        arm_probs.append(probs)
+
+    print(max_knobs)
     pprint.pp(arm_probs)
 
     exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, satw=args.satw)
