@@ -8,7 +8,7 @@ import itertools
 import fuzz
 
 class EXP3:
-    def __init__(self, arms, arm_probs, gamma, alpha, satw):
+    def __init__(self, arms, arm_probs, gamma, alpha, discount):
         """
         Initialize the EXP3 algorithm.
         """
@@ -16,11 +16,10 @@ class EXP3:
         self.arm_probs = arm_probs
         self.gamma = gamma
         self.alpha = alpha
-        self.satw = satw
+        self.discount = discount
         self.weights = np.ones(arms)  # Initialize weights for each arm
 
         self.arm_pulls = [0] * self.arms
-        self.arm_satcnt = [0] * self.arms
         self.pulls = []
 
     def select_arm(self):
@@ -44,11 +43,13 @@ class EXP3:
         """
         probabilities = self.get_probabilities()
         estimated_reward = reward / probabilities[chosen_arm]
+        self.weights = self.weights * self.discount
         self.weights[chosen_arm] *= np.exp(self.gamma * estimated_reward / self.arms)
 
     def step(self, itr, arm, probs):
       print('------------------------')
-      print('Arm probabilities: ' + str(self.get_probabilities()))
+      print('Arm probabilities: ', *self.get_probabilities())
+      print('Arm weights: ', *self.weights)
       print('Pulling arm: ' + str(arm))
       # create an nbf with input probs
       fuzz.cascade_run(itr, probs.tolist())
@@ -76,22 +77,9 @@ class EXP3:
 
       # update lists and counters
       self.pulls.append(arm)
-      if gcov == 0:
-        self.arm_satcnt[arm] += 1
-      else:
-        self.arm_satcnt[arm] = 0
       self.arm_pulls[arm] += 1
 
       return reward
-
-    def saturate(self, arm):
-      if self.arm_satcnt[arm] == self.satw:
-        print('Resetting saturated arm: ' + str(arm))
-        self.arm_satcnt[arm] = 0
-        self.arm_pulls[arm] = 0
-        self.arm_probs[arm] = np.random.dirichlet(0.1 * np.ones(args.knobs),size=1)[0]
-        self.weights[arm] = (np.sum(self.weights) - self.weights[arm]) / (self.arms - 1)
-        fuzz.rm_dir(str(arm) + '.best')
 
     def run(self, iterations):
         """
@@ -105,7 +93,6 @@ class EXP3:
               reward = self.step(itr, chosen_arm, chosen_probs)
 
               self.update(chosen_arm, reward)
-              self.saturate(chosen_arm)
 
               craw = int(fuzz.get_craw('gbest'))
               calign = int(fuzz.get_calign('gbest'))
@@ -127,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", type=float, required=True, help="Exploration parameter (0 < gamma <= 1)")
     parser.add_argument("--knobs", type=int, required=True, help="Number of Cascade knobs")
     parser.add_argument("--alpha", type=float, required=True, help="Local reward parameter (0 < alpha <= 1)")
-    parser.add_argument("--satw", type=int, required=True, help="Arm saturation window length")
+    parser.add_argument("--discount", type=float, required=True, help="Weight discount factor (0 < discount <= 1)")
 
     # Parse arguments
     args = parser.parse_args()
@@ -145,5 +132,5 @@ if __name__ == "__main__":
     print(max_knobs)
     pprint.pp(arm_probs)
 
-    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, satw=args.satw)
+    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, discount=args.discount)
     exp3.run(iterations=args.iterations)

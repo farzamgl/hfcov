@@ -25,7 +25,7 @@ export CASCADE_BP = $(ZP)/cosim/import/black-parrot
 export CASCADE_BP_SDK_DIR = $(ZP)/software/import/black-parrot-sdk
 
 FIRST = 0
-LAST = 9
+LAST = 0
 CGS = $(shell seq -s " " $(FIRST) $(LAST))
 
 RUN_DIR = $(TOP)/runs.$(COV_T)
@@ -119,11 +119,11 @@ MAB_ARMS ?= 8
 MAB_GAMMA ?= 0.1
 MAB_KNOBS ?= 8
 MAB_ALPHA ?= 0.25
-MAB_SATW ?= 3
+MAB_DISCOUNT ?= 0.95
 
 mab:
 	$(PYTHON) -u mab.py \
 	--iterations $(MAB_ITER) --arms $(MAB_ARMS) --gamma $(MAB_GAMMA) \
-	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --satw $(MAB_SATW) \
+	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --discount $(MAB_DISCOUNT) \
 	|& tee mab.$(COV_T).log
 
