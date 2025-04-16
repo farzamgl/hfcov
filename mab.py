@@ -8,7 +8,7 @@ import itertools
 import fuzz
 
 class EXP3:
-    def __init__(self, arms, arm_probs, gamma, alpha, discount):
+    def __init__(self, arms, arm_probs, gamma, alpha, window):
         """
         Initialize the EXP3 algorithm.
         """
@@ -16,8 +16,8 @@ class EXP3:
         self.arm_probs = arm_probs
         self.gamma = gamma
         self.alpha = alpha
-        self.discount = discount
-        self.weights = np.ones(arms)  # Initialize weights for each arm
+        self.window = window
+        self.weights = [[1 for _ in range(window)] for _ in range(arms)]
 
         self.arm_pulls = [0] * self.arms
         self.pulls = []
@@ -33,8 +33,9 @@ class EXP3:
         """
         Calculate the probability distribution for selecting each arm.
         """
-        total_weight = np.sum(self.weights)
-        probabilities = (1 - self.gamma) * (self.weights / total_weight) + (self.gamma / self.arms)
+        prod_weights = np.prod(self.weights, axis=1)
+        total_weight = np.sum(prod_weights)
+        probabilities = (1 - self.gamma) * (prod_weights / total_weight) + (self.gamma / self.arms)
         return probabilities
 
     def update(self, chosen_arm, reward):
@@ -43,8 +44,8 @@ class EXP3:
         """
         probabilities = self.get_probabilities()
         estimated_reward = reward / probabilities[chosen_arm]
-        self.weights = self.weights * self.discount
-        self.weights[chosen_arm] *= np.exp(self.gamma * estimated_reward / self.arms)
+        self.weights[chosen_arm].pop(0)
+        self.weights[chosen_arm].append(np.exp(self.gamma * estimated_reward / self.arms))
 
     def step(self, itr, arm, probs):
       print('------------------------')
@@ -66,7 +67,7 @@ class EXP3:
       else:
         reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
       # using logistic function to normalize reward
-      reward = (1 - np.exp(-0.25 *reward)) / (1 + np.exp(-0.25 * reward))
+      reward = (1 - np.exp(-0.05 * reward)) / (1 + np.exp(-0.05 * reward))
       print('gcov: ' + str(gcov))
       print('lcov: ' + str(lcov))
       print('reward: ' + str(reward))
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", type=float, required=True, help="Exploration parameter (0 < gamma <= 1)")
     parser.add_argument("--knobs", type=int, required=True, help="Number of Cascade knobs")
     parser.add_argument("--alpha", type=float, required=True, help="Local reward parameter (0 < alpha <= 1)")
-    parser.add_argument("--discount", type=float, required=True, help="Weight discount factor (0 < discount <= 1)")
+    parser.add_argument("--window", type=int, required=True, help="Observation window")
 
     # Parse arguments
     args = parser.parse_args()
@@ -132,5 +133,5 @@ if __name__ == "__main__":
     print(max_knobs)
     pprint.pp(arm_probs)
 
-    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, discount=args.discount)
+    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, window=args.window)
     exp3.run(iterations=args.iterations)

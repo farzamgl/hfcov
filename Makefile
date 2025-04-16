@@ -118,12 +118,12 @@ MAB_ITER ?= 10000
 MAB_ARMS ?= 8
 MAB_GAMMA ?= 0.1
 MAB_KNOBS ?= 8
-MAB_ALPHA ?= 0.25
-MAB_DISCOUNT ?= 0.95
+MAB_ALPHA ?= 0
+MAB_WINDOW ?= 25
 
 mab:
 	$(PYTHON) -u mab.py \
 	--iterations $(MAB_ITER) --arms $(MAB_ARMS) --gamma $(MAB_GAMMA) \
-	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --discount $(MAB_DISCOUNT) \
+	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --window $(MAB_WINDOW) \
 	|& tee mab.$(COV_T).log
 
