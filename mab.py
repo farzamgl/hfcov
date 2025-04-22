@@ -50,7 +50,7 @@ class EXP3:
     def step(self, itr, arm, probs):
       print('------------------------')
       print('Arm probabilities: ', *self.get_probabilities())
-      print('Arm weights: ', *self.weights)
+      print('Arm weights: ', *np.prod(self.weights, axis=1))
       print('Pulling arm: ' + str(arm))
       # create an nbf with input probs
       fuzz.cascade_run(itr, probs.tolist())
@@ -87,7 +87,7 @@ class EXP3:
         Run the EXP3 simulation.
         """
         fuzz.clean_sim()
-        with open('mab.raw', 'w') as fraw, open('mab.align', 'w') as falign:
+        with open('mab.raw', 'w') as fraw, open('mab.align', 'w') as falign, open('mab.arms', 'w') as farm:
           for itr in range(iterations):
               chosen_arm = self.select_arm()
               chosen_probs = self.arm_probs[chosen_arm]
@@ -99,8 +99,10 @@ class EXP3:
               calign = int(fuzz.get_calign('gbest'))
               fraw.write(str(craw) + '\n')
               falign.write(str(calign) + '\n')
+              farm.write(' '.join(map(str, self.get_probabilities())) + '\n')
               fraw.flush()
               falign.flush()
+              farm.flush()
 
         print(craw)
         print(calign)
