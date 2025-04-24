@@ -2,11 +2,8 @@ SHELL := /bin/bash
 
 TOP = $(CURDIR)
 
-ALIGN ?= 0
-ifeq ($(ALIGN),0)
-COV_T = raw
-else
-COV_T = align
+ifeq ($(filter $(COV_T),raw align toggle nocov),)
+$(error COV_T invalid or not set!)
 endif
 
 PYTHON = python3.9
@@ -58,22 +55,30 @@ libs:
 	for cg in $(CGS); do \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .raw,$$cg)) > $(RUN_DIR)/$*/$(addsuffix .raw,$$cg); \
 		sort -u $(addprefix $(ZP_SIM)/,$(addsuffix .align,$$cg)) > $(RUN_DIR)/$*/$(addsuffix .align,$$cg); \
+		$(PYTHON) toggle.py $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) > $(RUN_DIR)/$*/$(addsuffix .toggle,$$cg); \
+		sort -u -o $(RUN_DIR)/$*/$(addsuffix .toggle,$$cg) $(RUN_DIR)/$*/$(addsuffix .toggle,$$cg); \
 	done
 
 %.reward: | $(BEST)
+ifeq ($(COV_T), nocov)
+	echo 0
+else
 	touch $(RUN_DIR)/$*/$(BEST).diff
 	for cg in $(CGS); do \
 		comm -1 -3 $(RUN_DIR)/$(BEST)/$(addsuffix .$(COV_T),$$cg) $(RUN_DIR)/$*/$(addsuffix .$(COV_T),$$cg) >> $(RUN_DIR)/$*/$(BEST).diff; \
 	done
 	wc -l $(RUN_DIR)/$*/$(BEST).diff | awk '{print $$1;}'
 	#rm -rf $(RUN_DIR)/$*/$(BEST).diff
+endif
 
 %.update: | $(BEST)
 	for cg in $(CGS); do \
 		cat $(RUN_DIR)/$*/$(addsuffix .raw,$$cg) >> $(RUN_DIR)/$(BEST)/$(addsuffix .raw,$$cg); \
 		cat $(RUN_DIR)/$*/$(addsuffix .align,$$cg) >> $(RUN_DIR)/$(BEST)/$(addsuffix .align,$$cg); \
+		cat $(RUN_DIR)/$*/$(addsuffix .toggle,$$cg) >> $(RUN_DIR)/$(BEST)/$(addsuffix .toggle,$$cg); \
 		sort -u -o $(RUN_DIR)/$(BEST)/$(addsuffix .raw,$$cg) $(RUN_DIR)/$(BEST)/$(addsuffix .raw,$$cg); \
 		sort -u -o $(RUN_DIR)/$(BEST)/$(addsuffix .align,$$cg) $(RUN_DIR)/$(BEST)/$(addsuffix .align,$$cg); \
+		sort -u -o $(RUN_DIR)/$(BEST)/$(addsuffix .toggle,$$cg) $(RUN_DIR)/$(BEST)/$(addsuffix .toggle,$$cg); \
 	done
 
 $(BEST):
@@ -81,6 +86,7 @@ $(BEST):
 	for cg in $(CGS); do \
 		touch $(RUN_DIR)/$(BEST)/$(addsuffix .raw,$$cg); \
 		touch $(RUN_DIR)/$(BEST)/$(addsuffix .align,$$cg); \
+		touch $(RUN_DIR)/$(BEST)/$(addsuffix .toggle,$$cg); \
 	done
 
 %.craw:
@@ -95,6 +101,14 @@ $(BEST):
 	touch $(RUN_DIR)/$*/all
 	for cg in $(CGS); do \
 		cat $(RUN_DIR)/$*/$(addsuffix .align,$$cg) >> $(RUN_DIR)/$*/all; \
+	done
+	wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
+	rm -rf $(RUN_DIR)/$*/all
+
+%.ctoggle:
+	touch $(RUN_DIR)/$*/all
+	for cg in $(CGS); do \
+		cat $(RUN_DIR)/$*/$(addsuffix .toggle,$$cg) >> $(RUN_DIR)/$*/all; \
 	done
 	wc -l $(RUN_DIR)/$*/all | awk '{print $$1;}'
 	rm -rf $(RUN_DIR)/$*/all
@@ -120,10 +134,15 @@ MAB_GAMMA ?= 0.1
 MAB_KNOBS ?= 8
 MAB_ALPHA ?= 0
 MAB_WINDOW ?= 25
+ifeq ($(COV_T), toggle)
+MAB_SIGMOID ?= 0.25
+else
+MAB_SIGMOID ?= 0.05
+endif
 
 mab:
 	$(PYTHON) -u mab.py \
 	--iterations $(MAB_ITER) --arms $(MAB_ARMS) --gamma $(MAB_GAMMA) \
-	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --window $(MAB_WINDOW) \
+	--knobs $(MAB_KNOBS) --alpha $(MAB_ALPHA) --window $(MAB_WINDOW) --sigmoid $(MAB_SIGMOID) \
 	|& tee mab.$(COV_T).log
 

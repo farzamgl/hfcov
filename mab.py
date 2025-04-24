@@ -8,7 +8,7 @@ import itertools
 import fuzz
 
 class EXP3:
-    def __init__(self, arms, arm_probs, gamma, alpha, window):
+    def __init__(self, arms, arm_probs, gamma, alpha, window, sigmoid):
         """
         Initialize the EXP3 algorithm.
         """
@@ -17,6 +17,7 @@ class EXP3:
         self.gamma = gamma
         self.alpha = alpha
         self.window = window
+        self.sigmoid = sigmoid
         self.weights = [[1 for _ in range(window)] for _ in range(arms)]
 
         self.arm_pulls = [0] * self.arms
@@ -67,7 +68,7 @@ class EXP3:
       else:
         reward = (self.alpha * lcov) + ((1 - self.alpha) * gcov)
       # using logistic function to normalize reward
-      reward = (1 - np.exp(-0.05 * reward)) / (1 + np.exp(-0.05 * reward))
+      reward = (1 - np.exp(-1 * self.sigmoid * reward)) / (1 + np.exp(-1 * self.sigmoid * reward))
       print('gcov: ' + str(gcov))
       print('lcov: ' + str(lcov))
       print('reward: ' + str(reward))
@@ -87,7 +88,7 @@ class EXP3:
         Run the EXP3 simulation.
         """
         fuzz.clean_sim()
-        with open('mab.raw', 'w') as fraw, open('mab.align', 'w') as falign, open('mab.arms', 'w') as farm:
+        with open('mab.raw', 'w') as fraw, open('mab.align', 'w') as falign, open('mab.toggle', 'w') as ftoggle, open('mab.arms', 'w') as farm:
           for itr in range(iterations):
               chosen_arm = self.select_arm()
               chosen_probs = self.arm_probs[chosen_arm]
@@ -97,15 +98,18 @@ class EXP3:
 
               craw = int(fuzz.get_craw('gbest'))
               calign = int(fuzz.get_calign('gbest'))
+              ctoggle = int(fuzz.get_ctoggle('gbest'))
+
               fraw.write(str(craw) + '\n')
               falign.write(str(calign) + '\n')
+              ftoggle.write(str(ctoggle) + '\n')
               farm.write(' '.join(map(str, self.get_probabilities())) + '\n')
+
               fraw.flush()
               falign.flush()
+              ftoggle.flush()
               farm.flush()
 
-        print(craw)
-        print(calign)
 
 if __name__ == "__main__":
     # Create the parser
@@ -118,6 +122,7 @@ if __name__ == "__main__":
     parser.add_argument("--knobs", type=int, required=True, help="Number of Cascade knobs")
     parser.add_argument("--alpha", type=float, required=True, help="Local reward parameter (0 < alpha <= 1)")
     parser.add_argument("--window", type=int, required=True, help="Observation window")
+    parser.add_argument("--sigmoid", type=float, required=True, help="Sigmoid reward constant")
 
     # Parse arguments
     args = parser.parse_args()
@@ -135,5 +140,5 @@ if __name__ == "__main__":
     print(max_knobs)
     pprint.pp(arm_probs)
 
-    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, window=args.window)
+    exp3 = EXP3(arms=args.arms, arm_probs=arm_probs, gamma=args.gamma, alpha=args.alpha, window=args.window, sigmoid=args.sigmoid)
     exp3.run(iterations=args.iterations)

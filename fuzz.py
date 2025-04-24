@@ -28,5 +28,8 @@ def get_craw(name):
 def get_calign(name):
   return int(subprocess.run(['make', '-s', str(name)+'.calign'], capture_output=True, text=True).stdout)
 
+def get_ctoggle(name):
+  return int(subprocess.run(['make', '-s', str(name)+'.ctoggle'], capture_output=True, text=True).stdout)
+
 def rm_dir(name):
   subprocess.run(['make', '-s', str(name)+'.rm'], capture_output=False, text=True).stdout
